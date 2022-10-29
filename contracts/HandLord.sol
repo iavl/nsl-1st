@@ -7,7 +7,7 @@ interface IOracle {
     function requestRandom() external returns (uint256);
 }
 
-contract Card {
+contract HandLord {
     struct Player {
         uint256 round;
         address user;
@@ -253,7 +253,10 @@ contract Card {
                 // dead player
                 continue;
             }
-            if (playerInfo[user].lastActiveTime + timeout <= _now()) {
+
+            if (
+                playerInfo[user].status != 3 && playerInfo[user].lastActiveTime + timeout <= _now()
+            ) {
                 // timeout
                 _decreaseHealth(user); // decrease health
                 continue;

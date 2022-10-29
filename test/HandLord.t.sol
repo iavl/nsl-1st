@@ -3,13 +3,13 @@ pragma solidity 0.8.10;
 
 import "@std/Test.sol";
 import "@std/console2.sol";
-import "../contracts/Card.sol";
+import "../contracts/HandLord.sol";
 import "../contracts/Oracle.sol";
 import "./EmitExpecter.sol";
 
-contract CardTest is Test, EmitExpecter {
+contract HandLordTest is Test, EmitExpecter {
     Oracle oracle;
-    Card card;
+    HandLord card;
 
     address public alice = address(0x1);
     address public bob = address(0x2);
@@ -17,7 +17,38 @@ contract CardTest is Test, EmitExpecter {
 
     function setUp() public {
         oracle = new Oracle();
-        card = new Card(address(oracle));
+        card = new HandLord(address(oracle));
+    }
+
+    function testTimeout() public {
+        // new game
+        vm.prank(alice);
+        card.newGame();
+        // join
+        vm.prank(bob);
+        card.joinGame();
+        // start game
+        card.startGame();
+
+        /////////////////////// commit
+        // alice
+        _commit(alice);
+        _reveal(alice);
+
+        // timeout
+        skip(300);
+        vm.prank(alice);
+        card.settle();
+
+        _logGameInfo();
+
+        //        // round 2
+        //        _commit(alice);
+        //        _commit(bob);
+        //        _reveal(alice);
+        //        _reveal(bob);
+        //
+        //        _logGameInfo();
     }
 
     function testRun() public {
@@ -34,76 +65,45 @@ contract CardTest is Test, EmitExpecter {
         card.startGame();
 
         while (true) {
-            uint256 deadCount = 0;
-
             if (address(0) != _getWinner()) {
                 break;
             }
 
             /////////////////////// commit
-            // alice
-            uint256[] memory aliceCards = _getCandidates(alice);
-            if (_getHealth(alice) > 0) {
-                //        _logUints(aliceCards);
-                bytes32 aliceHash = keccak256(abi.encodePacked(aliceCards));
-                vm.prank(alice);
-                card.commit(aliceCards, aliceHash);
-            } else {
-                deadCount++;
-            }
-
-            // bob
-            uint256[] memory bobCards = _getCandidates(bob);
-            if (_getHealth(bob) > 0) {
-                //        _logUints(bobCards);
-                bytes32 bobHash = keccak256(abi.encodePacked(bobCards));
-                vm.prank(bob);
-                card.commit(bobCards, bobHash);
-            } else {
-                deadCount++;
-            }
-
-            // dan
-            uint256[] memory danCards = _getCandidates(dan);
-            if (_getHealth(dan) > 0) {
-                //        _logUints(danCards);
-                bytes32 danHash = keccak256(abi.encodePacked(danCards));
-                vm.prank(dan);
-                card.commit(danCards, danHash);
-            } else {
-                deadCount++;
-            }
+            _commit(alice);
+            _commit(bob);
+            _commit(dan);
 
             /////////////////////// reveal
-            if (_getHealth(alice) > 0) {
-                // alice
-                vm.prank(alice);
-                card.reveal(aliceCards);
-            }
-            if (_getHealth(bob) > 0) {
-                // bob
-                vm.prank(bob);
-                card.reveal(bobCards);
-            }
-            if (_getHealth(dan) > 0) {
-                // dan
-                vm.prank(dan);
-                card.reveal(danCards);
-            }
-
-            if (deadCount >= 2) {
-                break;
-            }
-
-            _logReplayInfo();
+            _reveal(alice);
+            _reveal(bob);
+            _reveal(dan);
         }
 
         // battle
         _logGameInfo();
     }
 
+    function _commit(address account) internal {
+        uint256[] memory candidatesCards = _getCandidates(account);
+
+        if (_getHealth(account) > 0) {
+            bytes32 hash = keccak256(abi.encodePacked(candidatesCards));
+            vm.prank(account);
+            card.commit(candidatesCards, hash);
+        }
+    }
+
+    function _reveal(address account) internal {
+        uint256[] memory candidatesCards = _getCandidates(account);
+        if (_getHealth(account) > 0) {
+            vm.prank(account);
+            card.reveal(candidatesCards);
+        }
+    }
+
     function _getCandidates(address account) internal view returns (uint256[] memory cards) {
-        Card.Player[] memory _playersInfo = new Card.Player[](3);
+        HandLord.Player[] memory _playersInfo = new HandLord.Player[](3);
         (, , _playersInfo, ) = card.getGameInfo();
 
         for (uint256 i = 0; i < _playersInfo.length; i++) {
@@ -115,7 +115,7 @@ contract CardTest is Test, EmitExpecter {
     }
 
     function _getHealth(address account) internal view returns (uint256 health) {
-        Card.Player[] memory _playersInfo = new Card.Player[](3);
+        HandLord.Player[] memory _playersInfo = new HandLord.Player[](3);
 
         (, , _playersInfo, ) = card.getGameInfo();
 
@@ -128,7 +128,7 @@ contract CardTest is Test, EmitExpecter {
     }
 
     function _getCurrentCards(address account) internal view returns (uint256[] memory cards) {
-        Card.Player[] memory _playersInfo = new Card.Player[](3);
+        HandLord.Player[] memory _playersInfo = new HandLord.Player[](3);
 
         (, , _playersInfo, ) = card.getGameInfo();
 
@@ -153,13 +153,13 @@ contract CardTest is Test, EmitExpecter {
     }
 
     function _logReplayInfo() internal {
-        Card.Replay[] memory _replayInfo = new Card.Replay[](3);
+        HandLord.Replay[] memory _replayInfo = new HandLord.Replay[](3);
 
         (, , , _replayInfo) = card.getGameInfo();
         console.logBytes32(0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa);
         console.logUint(_replayInfo.length);
         for (uint256 i = 0; i < _replayInfo.length; i++) {
-            Card.Replay memory replay = _replayInfo[i];
+            HandLord.Replay memory replay = _replayInfo[i];
             console.logAddress(replay.user1);
             console.logAddress(replay.user2);
             console.logAddress(replay.winner);
@@ -170,15 +170,15 @@ contract CardTest is Test, EmitExpecter {
     function _logGameInfo() internal {
         uint256 round;
         address winner;
-        Card.Player[] memory _playersInfo = new Card.Player[](3);
-        Card.Replay[] memory _replayInfo = new Card.Replay[](3);
+        HandLord.Player[] memory _playersInfo = new HandLord.Player[](3);
+        HandLord.Replay[] memory _replayInfo = new HandLord.Replay[](3);
 
         (round, winner, _playersInfo, _replayInfo) = card.getGameInfo();
         console.logUint(round);
         console.logAddress(winner);
 
         for (uint256 i = 0; i < _playersInfo.length; i++) {
-            Card.Player memory player = _playersInfo[i];
+            HandLord.Player memory player = _playersInfo[i];
             console.logAddress(player.user);
             console.logUint(player.round);
             //            console.logBytes32(player.commitmentHash);
