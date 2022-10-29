@@ -52,6 +52,33 @@ contract HandLordTest is Test, EmitExpecter {
         _logGameInfo();
     }
 
+    function test1V1Run() public {
+        // new game
+        vm.prank(alice);
+        card.newGame();
+        // join
+        vm.prank(bob);
+        card.joinGame();
+        // start game
+        card.startGame();
+
+        while (true) {
+            if (address(0) != _getWinner()) {
+                break;
+            }
+
+            vm.prank(alice);
+            card.autoRun();
+            skip(10);
+
+            vm.prank(bob);
+            card.autoRun();
+            skip(10);
+        }
+
+        _logGameInfo();
+    }
+
     function test1V1() public {
         // new game
         vm.prank(alice);

@@ -8,6 +8,9 @@ interface IOracle {
 }
 
 contract HandLord {
+    // events
+    event Win(uint256 indexed round, address indexed winner);
+
     struct Player {
         uint256 round;
         address user;
@@ -301,6 +304,7 @@ contract HandLord {
 
         // game end
         if (address(0) != _getWinner()) {
+            emit Win(currentRound, _getWinner());
             // set game status: game over
             status = 3;
             return;
