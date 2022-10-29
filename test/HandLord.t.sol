@@ -20,6 +20,67 @@ contract HandLordTest is Test, EmitExpecter {
         card = new HandLord(address(oracle));
     }
 
+    function testWith3Players() public {
+        // new game
+        vm.prank(alice);
+        card.newGame();
+        // join
+        vm.prank(bob);
+        card.joinGame();
+        // join
+        vm.prank(dan);
+        card.joinGame();
+        // start game
+        card.startGame();
+
+        while (true) {
+            if (address(0) != _getWinner()) {
+                break;
+            }
+
+            /////////////////////// commit
+            _commit(alice);
+            _commit(bob);
+            _commit(dan);
+
+            /////////////////////// reveal
+            _reveal(alice);
+            _reveal(bob);
+            _reveal(dan);
+        }
+
+        _logGameInfo();
+    }
+
+    function test1V1() public {
+        // new game
+        vm.prank(alice);
+        card.newGame();
+        // join
+        vm.prank(bob);
+        card.joinGame();
+        // start game
+        card.startGame();
+
+        while (true) {
+            if (address(0) != _getWinner()) {
+                break;
+            }
+
+            //            /////////////////////// commit
+            //            _commit(alice);
+            //            _commit(bob);
+            //
+            //            /////////////////////// reveal
+            //            _reveal(alice);
+            //            _reveal(bob);
+            _autoRun(alice);
+            _autoRun(bob);
+        }
+
+        _logGameInfo();
+    }
+
     function testTimeout() public {
         // new game
         vm.prank(alice);
@@ -42,13 +103,13 @@ contract HandLordTest is Test, EmitExpecter {
 
         _logGameInfo();
 
-        //        // round 2
-        //        _commit(alice);
-        //        _commit(bob);
-        //        _reveal(alice);
-        //        _reveal(bob);
-        //
-        //        _logGameInfo();
+        // round 2
+        _commit(alice);
+        _commit(bob);
+        _reveal(alice);
+        _reveal(bob);
+
+        _logGameInfo();
     }
 
     function testRun() public {
@@ -99,6 +160,18 @@ contract HandLordTest is Test, EmitExpecter {
         if (_getHealth(account) > 0) {
             vm.prank(account);
             card.reveal(candidatesCards);
+        }
+    }
+
+    function _autoRun(address account) internal {
+        if (_getHealth(account) > 0) {
+            uint256[] memory candidatesCards = _getCandidates(account);
+            bytes32 hash = keccak256(abi.encodePacked(candidatesCards));
+
+            vm.startPrank(account);
+            card.commit(candidatesCards, hash);
+            card.reveal(candidatesCards);
+            vm.stopPrank();
         }
     }
 
@@ -177,22 +250,21 @@ contract HandLordTest is Test, EmitExpecter {
         console.logUint(round);
         console.logAddress(winner);
 
+        /*
         for (uint256 i = 0; i < _playersInfo.length; i++) {
             HandLord.Player memory player = _playersInfo[i];
             console.logAddress(player.user);
             console.logUint(player.round);
-            //            console.logBytes32(player.commitmentHash);
+            console.logBytes32(player.commitmentHash);
             console.logUint(player.lastActiveTime);
-            //            console.logUint(player.status);
+            console.logUint(player.status);
             console.logUint(player.health);
-
-            //            console.logUint(11111111111111111111111111111111111111111111111111111111111111111111);
-            //            for (uint256 j = 0; j < player.candidateCards.length; j++) {
-            //                console.logUint(player.candidateCards[j]);
-            //            }
-            //            console.logUint(11111111111111111111111111111111111111111111111111111111111111111111);
-
-            console.logUint(222222222222222222222222222222222222222222222222222222222222222);
+            console.logUint(11111111111111111111111111111111111111111111111111111111111111111111);
+            for (uint256 j = 0; j < player.candidateCards.length; j++) {
+                console.logUint(player.candidateCards[j]);
+            }
+            console.logUint(11111111111111111111111111111111111111111111111111111111111111111111);
         }
+        */
     }
 }
